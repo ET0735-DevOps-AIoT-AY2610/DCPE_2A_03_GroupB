@@ -9,3 +9,6 @@ __pycache__/
 # Python compiled files
 *.pyc
 *.pyo
+
+# Kubernetes secrets
+k8s/fire-secret.yaml

@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aiot-fire-app
+  namespace: aiot-fire
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: aiot-fire-app
+
+  template:
+    metadata:
+      labels:
+        app: aiot-fire-app
+
+    spec:
+      containers:
+        - name: aiot-fire-app
+          image: thuhtoo1806/aiot-fire-app:latest
+          imagePullPolicy: Always
+
+          securityContext:
+            privileged: true
+
+          envFrom:
+            - secretRef:
+                name: fire-app-secret
+
+          volumeMounts:
+            - name: dev
+              mountPath: /dev
+
+            - name: udev
+              mountPath: /run/udev
+              readOnly: true
+
+      volumes:
+        - name: dev
+          hostPath:
+            path: /dev
+            type: Directory
+
+        - name: udev
+          hostPath:
+            path: /run/udev
+            type: Directory
