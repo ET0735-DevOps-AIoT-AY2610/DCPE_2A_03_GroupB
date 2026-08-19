@@ -379,6 +379,23 @@ def test_read_temperature_normal(monkeypatch):
 
 
 
+def test_read_temperature_invalid_reading(monkeypatch):
+    main.current_temp = 25.0
+
+    monkeypatch.setattr(
+        main.temp_humid_sensor,
+        "read_temp_humidity",
+        lambda: (-100, 60.0),
+        raising=False,
+    )
+
+    result = main.read_temperature()
+
+    assert result == 25.0
+    assert main.current_temp == 25.0
+
+
+
 def test_read_temperature_sensor_failure(monkeypatch):
     main.current_temp = 25.0
 
@@ -853,39 +870,49 @@ def test_send_telegram_photo_success(tmp_path, monkeypatch):
     photo = tmp_path / "fire.jpg"
     photo.write_bytes(b"fake-jpeg")
 
-    class FakeResult:
-        returncode = 0
-        stdout = ""
-        stderr = ""
+    class FakeResponse:
+        status = 200
+
+        def read(self):
+            return b'{"ok": true}'
+
+    captured = {}
+
+    def fake_urlopen(req, timeout):
+        captured["request"] = req
+        captured["timeout"] = timeout
+        return FakeResponse()
 
     monkeypatch.setattr(
-        main.subprocess,
-        "run",
-        lambda *args, **kwargs: FakeResult(),
+        main.request,
+        "urlopen",
+        fake_urlopen,
     )
 
     result = main.send_telegram_photo(photo)
 
     assert result is True
+    assert captured["timeout"] == 30
+    assert captured["request"].full_url == (
+        "https://api.telegram.org/bottoken/sendPhoto"
+    )
 
 
 
-def test_send_telegram_photo_http_failure(tmp_path, monkeypatch):
+def test_send_telegram_photo_network_failure(tmp_path, monkeypatch):
     main.TELEGRAM_BOT_TOKEN = "token"
     main.TELEGRAM_CHAT_ID = "chat"
 
     photo = tmp_path / "fire.jpg"
     photo.write_bytes(b"fake-jpeg")
 
-    class FakeResult:
-        returncode = 1
-        stdout = ""
-        stderr = "HTTP error"
+    def fake_urlopen(req, timeout):
+        raise OSError("network error")
 
     monkeypatch.setattr(
-        main.subprocess,
-        "run",
-        lambda *args, **kwargs: FakeResult(),
+        main.request,
+        "urlopen",
+        fake_urlopen,
     )
 
     result = main.send_telegram_photo(photo)

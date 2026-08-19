@@ -332,10 +332,22 @@ def read_temperature():
 
     try:
         temperature, _humidity = temp_humid_sensor.read_temp_humidity()
+
+        # Ignore invalid DHT11 readings
+        if temperature is None or temperature < -40 or temperature > 80:
+            print("Invalid temperature reading:", temperature)
+            write_log(
+                "TEMPERATURE_READ_ERROR",
+                "Invalid temperature={}".format(temperature)
+            )
+            return current_temp
+
         current_temp = temperature
         return current_temp
+
     except Exception as exc:
         print("Temperature sensor warning:", exc)
+        write_log("TEMPERATURE_READ_ERROR", str(exc))
         return current_temp
 
 
@@ -575,7 +587,7 @@ def send_telegram_message(message):
 
 
 def send_telegram_photo(photo_path):
-    """Upload a captured photo to Telegram using curl."""
+    """Upload a captured photo to Telegram using Python urllib."""
     try:
         if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
             print("Telegram is not configured.")
@@ -587,39 +599,44 @@ def send_telegram_photo(photo_path):
             + "/sendPhoto"
         )
 
-        result = subprocess.run(
-            [
-                "curl",
-                "--http1.1",
-                "--silent",
-                "--show-error",
-                "--fail",
-                "--connect-timeout",
-                "10",
-                "--max-time",
-                "30",
-                "-F",
-                "chat_id={}".format(TELEGRAM_CHAT_ID),
-                "-F",
-                "photo=@{}".format(photo_path),
-                url,
-            ],
-            capture_output=True,
-            text=True,
+        boundary = "----AIoTFireAlertBoundary"
+        boundary_bytes = boundary.encode()
+
+        with open(photo_path, "rb") as photo_file:
+            photo_data = photo_file.read()
+
+        body = (
+            b"--" + boundary_bytes + b"\r\n"
+            b'Content-Disposition: form-data; name="chat_id"\r\n\r\n'
+            + TELEGRAM_CHAT_ID.encode()
+            + b"\r\n"
+            b"--" + boundary_bytes + b"\r\n"
+            b'Content-Disposition: form-data; name="photo"; filename="fire.jpg"\r\n'
+            b"Content-Type: image/jpeg\r\n\r\n"
+            + photo_data
+            + b"\r\n"
+            b"--" + boundary_bytes + b"--\r\n"
         )
 
-        if result.returncode == 0:
+        req = request.Request(
+            url,
+            data=body,
+            headers={
+                "Content-Type": (
+                    "multipart/form-data; boundary=" + boundary
+                )
+            },
+            method="POST",
+        )
+
+        response = request.urlopen(req, timeout=30)
+        response_data = response.read().decode()
+
+        if response.status == 200:
             print("Telegram photo uploaded successfully.")
             return True
 
-        print(
-            "Telegram photo upload failed:",
-            result.stderr.strip()
-        )
-
-        if result.stdout:
-            print("Telegram response:", result.stdout.strip())
-
+        print("Telegram photo upload failed:", response_data)
         return False
 
     except Exception as exc:
