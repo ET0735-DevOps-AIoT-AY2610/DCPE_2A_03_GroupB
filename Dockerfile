@@ -1,13 +1,11 @@
-FROM python:3.8.11-slim-buster
+FROM arm32v7/python:3.8.17-slim-buster
 
-WORKDIR /app
+WORKDIR /aiot-fire-app
 
 COPY requirements.txt .
 
 RUN pip install -r requirements.txt
 
-COPY src ./src
+COPY ./src ./src
 
-WORKDIR /app/src
-
-CMD ["python3", "main.py"]
+CMD ["python", "./src/main.py"]
