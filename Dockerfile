@@ -31,6 +31,8 @@ COPY requirements.txt .
 
 RUN pip3 install --no-cache-dir -r requirements.txt
 
+COPY spi.cpython-39-arm-linux-gnueabihf.so /usr/local/lib/python3.9/dist-packages/
+
 COPY ./src ./src
 
 CMD ["python3", "./src/main.py"]

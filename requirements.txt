@@ -1,4 +1,3 @@
-SPI-Py==1.0
 RPi.GPIO==0.7.1
 smbus==1.1.post2
 spidev==3.8
