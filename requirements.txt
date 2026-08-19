@@ -1,0 +1,4 @@
+picamera2
+RPi.GPIO
+smbus
+spidev
