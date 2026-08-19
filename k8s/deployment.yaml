@@ -17,6 +17,9 @@ spec:
         app: aiot-fire-app
 
     spec:
+      nodeSelector:
+        hardware: raspberrypi
+
       containers:
         - name: aiot-fire-app
           image: thuhtoo1806/aiot-fire-app:latest
